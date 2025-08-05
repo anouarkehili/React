@@ -6,31 +6,33 @@ export interface ProductQuantity {
 }
 
 /**
- * الحصول على الكمية الإجمالية للمنتج (مجموع الكميات في كلا الناديين)
+ * الحصول على الكمية الإجمالية للمنتج (مخزن مشترك)
  */
 export const getTotalQuantity = (product: ProductQuantity): number => {
   return product.male_gym_quantity + product.female_gym_quantity;
 };
 
 /**
- * الحصول على الكمية المتاحة حسب نوع النادي
+ * الحصول على الكمية المتاحة (مخزن مشترك)
  */
-export const getAvailableQuantity = (product: ProductQuantity, gymType: 'male' | 'female'): number => {
-  return gymType === 'male' ? product.male_gym_quantity : product.female_gym_quantity;
+export const getAvailableQuantity = (product: ProductQuantity, gymType?: 'male' | 'female'): number => {
+  // المخزن مشترك - إرجاع الكمية الإجمالية
+  return getTotalQuantity(product);
 };
 
 /**
- * الحصول على اسم حقل الكمية حسب نوع النادي
+ * الحصول على اسم حقل الكمية حسب نوع النادي (للتحديث)
  */
 export const getQuantityField = (gymType: 'male' | 'female'): string => {
-  return gymType === 'male' ? 'male_gym_quantity' : 'female_gym_quantity';
+  // يمكن تحديث أي من الحقلين، سنستخدم male_gym_quantity كحقل أساسي
+  return 'male_gym_quantity';
 };
 
 /**
  * التحقق من وجود مخزون كافي
  */
 export const hasEnoughStock = (product: ProductQuantity, quantity: number, gymType: 'male' | 'female'): boolean => {
-  const availableQuantity = getAvailableQuantity(product, gymType);
+  const availableQuantity = getTotalQuantity(product);
   return availableQuantity >= quantity;
 };
 
@@ -39,12 +41,12 @@ export const hasEnoughStock = (product: ProductQuantity, quantity: number, gymTy
  */
 export const formatQuantityDisplay = (product: ProductQuantity, gymType: 'male' | 'female') => {
   const totalQuantity = getTotalQuantity(product);
-  const availableQuantity = getAvailableQuantity(product, gymType);
+  const availableQuantity = totalQuantity;
   
   return {
     total: totalQuantity,
     available: availableQuantity,
-    isLowStock: availableQuantity < 5,
-    status: availableQuantity < 5 ? 'مخزون منخفض' : 'متوفر'
+    isLowStock: totalQuantity < 5,
+    status: totalQuantity < 5 ? 'مخزون منخفض' : 'متوفر'
   };
 }; 

@@ -85,11 +85,19 @@ const ProductsPage: React.FC = () => {
       
       if (editingProduct) {
         // Update existing product
+        // تحديث الكمية في الحقل المناسب حسب نوع النادي
+        const updateQuery = gymType === 'male' 
+          ? `UPDATE products 
+             SET barcode = ?, name = ?, category_id = ?, purchase_price = ?, 
+                 sale_price = ?, male_gym_quantity = ?, notes = ?
+             WHERE id = ?`
+          : `UPDATE products 
+             SET barcode = ?, name = ?, category_id = ?, purchase_price = ?, 
+                 sale_price = ?, female_gym_quantity = ?, notes = ?
+             WHERE id = ?`;
+             
         await window.electronAPI.run(`
-          UPDATE products 
-          SET barcode = ?, name = ?, category_id = ?, purchase_price = ?, 
-              sale_price = ?, ${quantityField} = ?, notes = ?
-          WHERE id = ?
+          ${updateQuery}
         `, [
           barcode,
           formData.name,
@@ -102,8 +110,7 @@ const ProductsPage: React.FC = () => {
         ]);
       } else {
         // Create new product
-        const maleQty = gymType === 'male' ? (parseInt(formData.quantity) || 0) : 0;
-        const femaleQty = gymType === 'female' ? (parseInt(formData.quantity) || 0) : 0;
+        const quantity = parseInt(formData.quantity) || 0;
         
         await window.electronAPI.run(`
           INSERT INTO products (barcode, name, category_id, purchase_price, sale_price, 
@@ -115,8 +122,8 @@ const ProductsPage: React.FC = () => {
           formData.category_id || null,
           parseFloat(formData.purchase_price) || 0,
           parseFloat(formData.sale_price) || 0,
-          maleQty,
-          femaleQty,
+          quantity, // إضافة الكمية للمخزن المشترك
+          0, // female_gym_quantity يبقى 0
           formData.notes
         ]);
       }
@@ -139,7 +146,7 @@ const ProductsPage: React.FC = () => {
       category_id: (product as any).category_id?.toString() || '',
       purchase_price: product.purchase_price.toString(),
       sale_price: product.sale_price.toString(),
-      quantity: (gymType === 'male' ? product.male_gym_quantity : product.female_gym_quantity).toString(),
+      quantity: getTotalQuantity(product).toString(), // عرض الكمية الإجمالية
       notes: product.notes || ''
     });
     setShowModal(true);
@@ -182,7 +189,7 @@ const ProductsPage: React.FC = () => {
   );
 
   const getCurrentQuantity = (product: Product) => {
-    // إظهار الكمية الإجمالية (مجموع الكميات في كلا الناديين)
+    // إظهار الكمية الإجمالية (مخزن مشترك)
     return getTotalQuantity(product);
   };
 

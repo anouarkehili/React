@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Eye, Printer, CreditCard, ShoppingCart } from 'lucide-react';
+import { Plus, Search, Eye, Printer, CreditCard, ShoppingCart, Scan } from 'lucide-react';
 import { useGym } from '../../contexts/GymContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { getQuantityField, hasEnoughStock } from '../../utils/inventory';
@@ -45,6 +45,7 @@ const SalesPage: React.FC = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('');
+  const [barcodeInput, setBarcodeInput] = useState('');
   
   const [formData, setFormData] = useState({
     customer_name: '',
@@ -66,6 +67,50 @@ const SalesPage: React.FC = () => {
     loadProducts();
   }, [gymId]);
 
+  // Keyboard shortcuts and barcode scanning
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Open new invoice with Space key
+      if (e.code === 'Space' && !showModal && (!e.target || (e.target as HTMLElement).tagName !== 'INPUT')) {
+        e.preventDefault();
+        openAddModal();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyPress);
+    return () => document.removeEventListener('keydown', handleKeyPress);
+  }, [showModal]);
+
+  // Barcode scanning effect
+  useEffect(() => {
+    if (barcodeInput && showModal) {
+      const product = products.find(p => p.barcode === barcodeInput);
+      if (product) {
+        // Add product to invoice
+        const existingItemIndex = formData.items.findIndex(item => item.product_id === product.id);
+        
+        if (existingItemIndex >= 0) {
+          // Increase quantity if product already exists
+          const newItems = [...formData.items];
+          newItems[existingItemIndex].quantity += 1;
+          newItems[existingItemIndex].total_price = newItems[existingItemIndex].quantity * newItems[existingItemIndex].unit_price;
+          setFormData({ ...formData, items: newItems });
+        } else {
+          // Add new item
+          const newItem = {
+            product_id: product.id,
+            product_name: product.name,
+            quantity: 1,
+            unit_price: product.sale_price,
+            total_price: product.sale_price
+          };
+          setFormData({ ...formData, items: [...formData.items, newItem] });
+        }
+        
+        setBarcodeInput(''); // Clear barcode input
+      }
+    }
+  }, [barcodeInput, products, formData.items, showModal]);
   const loadInvoices = async () => {
     try {
       const data = await window.electronAPI.query(`
@@ -182,11 +227,15 @@ const SalesPage: React.FC = () => {
         }
       }
 
+      // Get current timestamp
+      const now = new Date();
+      const timestamp = now.toISOString();
+
       // Create invoice with profit
       const invoiceResult = await window.electronAPI.run(`
         INSERT INTO invoices (invoice_number, customer_name, customer_phone, subtotal, 
-                             discount, total, profit, paid_amount, is_credit, gym_id, user_id) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             discount, total, profit, paid_amount, is_credit, gym_id, user_id, created_at) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         invoiceNumber,
         formData.customer_name,
@@ -198,7 +247,8 @@ const SalesPage: React.FC = () => {
         paidAmount,
         formData.is_credit,
         gymId,
-        user?.id
+        user?.id,
+        timestamp
       ]);
 
       const invoiceId = invoiceResult.lastInsertRowid;
@@ -211,10 +261,9 @@ const SalesPage: React.FC = () => {
         `, [invoiceId, item.product_id, item.quantity, item.unit_price, item.total_price]);
 
         // Update product quantity - خصم الكمية من الكمية المناسبة حسب نوع النادي
-        const quantityField = getQuantityField(gymType);
         await window.electronAPI.run(`
           UPDATE products 
-          SET ${quantityField} = ${quantityField} - ? 
+          SET male_gym_quantity = male_gym_quantity - ? 
           WHERE id = ?
         `, [item.quantity, item.product_id]);
       }
@@ -442,14 +491,27 @@ const SalesPage: React.FC = () => {
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold arabic-text">المنتجات</h3>
-                  <button
-                    type="button"
-                    onClick={addItem}
-                    className="btn-secondary-ar arabic-text flex items-center"
-                  >
-                    <Plus className="w-4 h-4 ml-2" />
-                    إضافة منتج
-                  </button>
+                  <div className="flex items-center space-x-reverse space-x-2">
+                    <div className="relative">
+                      <Scan className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                      <input
+                        type="text"
+                        value={barcodeInput}
+                        onChange={(e) => setBarcodeInput(e.target.value)}
+                        className="form-input-ar pr-10"
+                        placeholder="مسح الباركود..."
+                        style={{ width: '200px' }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addItem}
+                      className="btn-secondary-ar arabic-text flex items-center"
+                    >
+                      <Plus className="w-4 h-4 ml-2" />
+                      إضافة منتج
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-4">
@@ -605,7 +667,7 @@ const SalesPage: React.FC = () => {
                 فاتورة رقم: {selectedInvoice.invoice_number}
               </h2>
               <p className="text-gray-600 arabic-text">
-                تاريخ الإنشاء: {new Date(selectedInvoice.created_at).toLocaleDateString('ar-DZ')}
+                تاريخ الإنشاء: {new Date(selectedInvoice.created_at).toLocaleDateString('ar-DZ')} - {new Date(selectedInvoice.created_at).toLocaleTimeString('ar-DZ')}
               </p>
             </div>
 

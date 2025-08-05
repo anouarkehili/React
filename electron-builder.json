@@ -2,7 +2,8 @@
   "appId": "com.gym.management.algeria",
   "productName": "نظام إدارة النادي الرياضي",
   "directories": {
-    "output": "dist-electron"
+    "output": "dist-electron",
+    "buildResources": "assets"
   },
   "files": [
     "dist/**/*",
@@ -10,22 +11,66 @@
     "data/**/*",
     "node_modules/**/*"
   ],
+  "extraResources": [
+    {
+      "from": "data/",
+      "to": "data/",
+      "filter": ["**/*"]
+    }
+  ],
   "mac": {
     "category": "public.app-category.business",
-    "target": "dmg"
+    "target": {
+      "target": "dmg",
+      "arch": ["x64", "arm64"]
+    },
+    "icon": "assets/icon.icns"
   },
   "win": {
-    "target": "nsis",
-    "icon": "public/icon.png"
+    "target": {
+      "target": "nsis",
+      "arch": ["x64", "ia32"]
+    },
+    "icon": "assets/icon.ico",
+    "requestedExecutionLevel": "asInvoker",
+    "artifactName": "${productName}-${version}-Setup.${ext}"
   },
   "linux": {
-    "target": "AppImage",
-    "category": "Office"
+    "target": [
+      {
+        "target": "AppImage",
+        "arch": ["x64"]
+      },
+      {
+        "target": "deb",
+        "arch": ["x64"]
+      }
+    ],
+    "category": "Office",
+    "icon": "assets/icon.png"
   },
   "nsis": {
     "oneClick": false,
+    "allowElevation": true,
     "allowToChangeInstallationDirectory": true,
     "createDesktopShortcut": true,
-    "createStartMenuShortcut": true
-  }
+    "createStartMenuShortcut": true,
+    "shortcutName": "نظام إدارة النادي الرياضي",
+    "installerIcon": "assets/icon.ico",
+    "uninstallerIcon": "assets/icon.ico",
+    "installerHeaderIcon": "assets/icon.ico",
+    "deleteAppDataOnUninstall": false,
+    "runAfterFinish": true,
+    "menuCategory": "نظام إدارة النادي الرياضي",
+    "include": "installer.nsh",
+    "warningsAsErrors": false,
+    "displayLanguageSelector": true,
+    "installerLanguages": ["ar", "en"],
+    "language": "ar"
+  },
+  "publish": null,
+  "compression": "maximum",
+  "buildDependenciesFromSource": false,
+  "nodeGypRebuild": false,
+  "buildVersion": "1.0.0"
 }

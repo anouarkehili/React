@@ -132,43 +132,6 @@ const LoginPage: React.FC = () => {
               )}
             </button>
           </form>
-
-          {/* Login Instructions */}
-          <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-100">
-            <h3 className="text-sm font-semibold text-blue-700 mb-2 arabic-text">
-              <span className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                تعليمات تسجيل الدخول:
-              </span>
-            </h3>
-            <div className="text-sm text-blue-700 space-y-2 arabic-text">
-              <div>• استخدم اسم المستخدم وكلمة المرور المقدمة من المسؤول</div>
-              <div>• تأكد من تفعيل حسابك قبل تسجيل الدخول</div>
-              <div>• في حالة نسيان كلمة المرور، يرجى التواصل مع المسؤول</div>
-            </div>
-          </div>
-          
-          {/* Demo Credentials */}
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2 arabic-text">
-              <span className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                بيانات الدخول:
-              </span>
-            </h3>
-            <div className="text-xs text-gray-600 space-y-1 arabic-text">
-              <div className="flex items-center">
-                <span className="font-semibold ml-1">نادي الرجال:</span> admin_male / admin123
-              </div>
-              <div className="flex items-center">
-                <span className="font-semibold ml-1">نادي السيدات:</span> admin_female / admin123
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

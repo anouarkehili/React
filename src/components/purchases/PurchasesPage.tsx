@@ -160,10 +160,9 @@ const PurchasesPage: React.FC = () => {
         `, [purchaseId, item.product_id, item.quantity, item.unit_cost, item.total_cost]);
 
         // Update product quantity and purchase price - إضافة الكمية إلى الكمية المناسبة حسب نوع النادي
-        const quantityField = getQuantityField(gymType);
         await window.electronAPI.run(`
           UPDATE products 
-          SET ${quantityField} = ${quantityField} + ?, purchase_price = ?
+          SET male_gym_quantity = male_gym_quantity + ?, purchase_price = ?
           WHERE id = ?
         `, [item.quantity, item.unit_cost, item.product_id]);
       }

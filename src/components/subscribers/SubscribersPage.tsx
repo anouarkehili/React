@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Users, Search, Phone, Calendar, AlertTriangle } from 'lucide-react';
 import { useGym } from '../../contexts/GymContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface Subscriber {
   id: number;
@@ -16,6 +17,7 @@ interface Subscriber {
   gym_id: number;
   subscription_type_id: number;
   created_at: string;
+  created_by_user: string;
 }
 
 interface SubscriptionType {
@@ -29,6 +31,7 @@ interface SubscriptionType {
 
 const SubscribersPage: React.FC = () => {
   const { gymId } = useGym();
+  const { user } = useAuth();
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [subscriptionTypes, setSubscriptionTypes] = useState<SubscriptionType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,9 +55,11 @@ const SubscribersPage: React.FC = () => {
   const loadSubscribers = async () => {
     try {
       const data = await window.electronAPI.query(`
-        SELECT s.*, st.name as subscription_type_name, st.type as subscription_type
+        SELECT s.*, st.name as subscription_type_name, st.type as subscription_type,
+               u.full_name as created_by_user
         FROM subscribers s
         JOIN subscription_types st ON s.subscription_type_id = st.id
+        LEFT JOIN users u ON s.created_by = u.id
         WHERE s.gym_id = ?
         ORDER BY s.created_at DESC
       `, [gymId]);
@@ -158,8 +163,8 @@ const SubscribersPage: React.FC = () => {
         // Create new subscriber
         await window.electronAPI.run(`
           INSERT INTO subscribers (full_name, phone, subscription_type_id, start_date, 
-                                 end_date, price_paid, remaining_sessions, gym_id, status) 
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')
+                                 end_date, price_paid, remaining_sessions, gym_id, status, created_by) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
         `, [
           formData.full_name,
           formData.phone,
@@ -168,7 +173,8 @@ const SubscribersPage: React.FC = () => {
           endDate,
           parseFloat(formData.price_paid),
           remainingSessions,
-          gymId
+          gymId,
+          user?.id
         ]);
       }
       
@@ -207,15 +213,20 @@ const SubscribersPage: React.FC = () => {
   };
 
   const useSession = async (subscriberId: number) => {
-    try {
-      await window.electronAPI.run(`
-        UPDATE subscribers 
-        SET remaining_sessions = remaining_sessions - 1 
-        WHERE id = ? AND remaining_sessions > 0
-      `, [subscriberId]);
-      await loadSubscribers();
-    } catch (error) {
-      console.error('Error using session:', error);
+    // Show confirmation dialog
+    const confirmed = window.confirm('هل أنت متأكد من استخدام جلسة من هذا الاشتراك؟');
+    
+    if (confirmed) {
+      try {
+        await window.electronAPI.run(`
+          UPDATE subscribers 
+          SET remaining_sessions = remaining_sessions - 1 
+          WHERE id = ? AND remaining_sessions > 0
+        `, [subscriberId]);
+        await loadSubscribers();
+      } catch (error) {
+        console.error('Error using session:', error);
+      }
     }
   };
 
@@ -375,6 +386,7 @@ const SubscribersPage: React.FC = () => {
                   <th>المبلغ المدفوع</th>
                   <th>الجلسات المتبقية</th>
                   <th>الحالة</th>
+                  <th>أنشئ بواسطة</th>
                   <th>الإجراءات</th>
                 </tr>
               </thead>
@@ -423,6 +435,7 @@ const SubscribersPage: React.FC = () => {
                         {getStatusText(subscriber.status)}
                       </span>
                     </td>
+                    <td>{subscriber.created_by_user || '-'}</td>
                     <td>
                       <div className="flex items-center space-x-reverse space-x-2">
                         <button

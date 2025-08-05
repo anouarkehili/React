@@ -94,8 +94,11 @@ const InternalSalesPage: React.FC = () => {
         : parseFloat(formData.unit_price);
       const totalPrice = quantity * unitPrice;
 
-      // حساب الربح
-      const profit = totalPrice - (quantity * selectedProduct.purchase_price);
+      // حساب الربح - إذا كان السعر يدوي، احسب الربح، وإلا فالربح = 0
+      let profit = 0;
+      if (formData.price_type === 'manual') {
+        profit = totalPrice - (quantity * selectedProduct.purchase_price);
+      }
 
       // Create internal sale with profit
       await window.electronAPI.run(`
@@ -115,10 +118,9 @@ const InternalSalesPage: React.FC = () => {
       ]);
 
       // Update product quantity - خصم الكمية من الكمية المناسبة حسب نوع النادي
-      const quantityField = getQuantityField(gymType);
       await window.electronAPI.run(`
         UPDATE products 
-        SET ${quantityField} = ${quantityField} - ? 
+        SET male_gym_quantity = male_gym_quantity - ? 
         WHERE id = ?
       `, [quantity, parseInt(formData.product_id)]);
 

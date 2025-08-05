@@ -105,9 +105,11 @@ class DatabaseService {
         remaining_sessions INTEGER,
         status TEXT DEFAULT 'active',
         gym_id INTEGER,
+        created_by INTEGER,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (subscription_type_id) REFERENCES subscription_types (id),
-        FOREIGN KEY (gym_id) REFERENCES gyms (id)
+        FOREIGN KEY (gym_id) REFERENCES gyms (id),
+        FOREIGN KEY (created_by) REFERENCES users (id)
       )
     `);
 
