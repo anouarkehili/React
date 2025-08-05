@@ -1,0 +1,31 @@
+{
+  "appId": "com.gym.management.algeria",
+  "productName": "نظام إدارة النادي الرياضي",
+  "directories": {
+    "output": "dist-electron"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/**/*",
+    "data/**/*",
+    "node_modules/**/*"
+  ],
+  "mac": {
+    "category": "public.app-category.business",
+    "target": "dmg"
+  },
+  "win": {
+    "target": "nsis",
+    "icon": "public/icon.png"
+  },
+  "linux": {
+    "target": "AppImage",
+    "category": "Office"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true
+  }
+}
