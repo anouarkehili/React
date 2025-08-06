@@ -1,53 +1,40 @@
 {
-  "appId": "com.gym.management.algeria",
-  "productName": "نظام إدارة النادي الرياضي",
+  "appId": "com.gymdada.management",
+  "productName": "نظام إدارة النادي الرياضي - GYM DADA",
   "directories": {
     "output": "dist-electron",
-    "buildResources": "assets"
+    "buildResources": "build-resources"
   },
   "files": [
     "dist/**/*",
     "electron/**/*",
     "data/**/*",
-    "node_modules/**/*"
+    "node_modules/**/*",
+    "package.json"
   ],
   "extraResources": [
     {
       "from": "data/",
       "to": "data/",
       "filter": ["**/*"]
+    },
+    {
+      "from": "docs/",
+      "to": "docs/",
+      "filter": ["**/*"]
     }
   ],
-  "mac": {
-    "category": "public.app-category.business",
-    "target": {
-      "target": "dmg",
-      "arch": ["x64", "arm64"]
-    },
-    "icon": "assets/icon.icns"
-  },
   "win": {
-    "target": {
-      "target": "nsis",
-      "arch": ["x64", "ia32"]
-    },
-    "icon": "assets/icon.ico",
-    "requestedExecutionLevel": "asInvoker",
-    "artifactName": "${productName}-${version}-Setup.${ext}"
-  },
-  "linux": {
     "target": [
       {
-        "target": "AppImage",
-        "arch": ["x64"]
-      },
-      {
-        "target": "deb",
+        "target": "nsis",
         "arch": ["x64"]
       }
     ],
-    "category": "Office",
-    "icon": "assets/icon.png"
+    "icon": "build-resources/icon.ico",
+    "requestedExecutionLevel": "asInvoker",
+    "artifactName": "${productName}-${version}-Setup.${ext}",
+    "publisherName": "GYM DADA Systems"
   },
   "nsis": {
     "oneClick": false,
@@ -56,21 +43,41 @@
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
     "shortcutName": "نظام إدارة النادي الرياضي",
-    "installerIcon": "assets/icon.ico",
-    "uninstallerIcon": "assets/icon.ico",
-    "installerHeaderIcon": "assets/icon.ico",
+    "installerIcon": "build-resources/icon.ico",
+    "uninstallerIcon": "build-resources/icon.ico",
+    "installerHeaderIcon": "build-resources/icon.ico",
     "deleteAppDataOnUninstall": false,
     "runAfterFinish": true,
     "menuCategory": "نظام إدارة النادي الرياضي",
-    "include": "installer.nsh",
     "warningsAsErrors": false,
-    "displayLanguageSelector": true,
-    "installerLanguages": ["ar", "en"],
-    "language": "ar"
+    "displayLanguageSelector": false,
+    "language": "Arabic",
+    "installerSidebar": "build-resources/installer-sidebar.bmp",
+    "uninstallerSidebar": "build-resources/installer-sidebar.bmp",
+    "installerHeader": "build-resources/installer-header.bmp",
+    "uninstallerHeader": "build-resources/installer-header.bmp",
+    "include": "installer-custom.nsh"
+  },
+  "mac": {
+    "category": "public.app-category.business",
+    "target": {
+      "target": "dmg",
+      "arch": ["x64", "arm64"]
+    },
+    "icon": "build-resources/icon.icns"
+  },
+  "linux": {
+    "target": [
+      {
+        "target": "AppImage",
+        "arch": ["x64"]
+      }
+    ],
+    "category": "Office",
+    "icon": "build-resources/icon.png"
   },
   "publish": null,
   "compression": "maximum",
   "buildDependenciesFromSource": false,
-  "nodeGypRebuild": false,
-  "buildVersion": "1.0.0"
+  "nodeGypRebuild": false
 }

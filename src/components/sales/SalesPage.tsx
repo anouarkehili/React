@@ -53,6 +53,8 @@ const SalesPage: React.FC = () => {
     discount: '0',
     paid_amount: '0',
     is_credit: false,
+    is_single_session: false,
+    single_session_price: '500',
     items: [] as Array<{
       product_id: number;
       product_name: string;
@@ -200,30 +202,34 @@ const SalesPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (formData.items.length === 0) {
+    if (formData.items.length === 0 && !formData.is_single_session) {
       alert('يرجى إضافة منتج واحد على الأقل');
       return;
     }
 
     try {
       const invoiceNumber = generateInvoiceNumber();
-      const subtotal = calculateSubtotal();
-      const total = calculateTotal();
+      const subtotal = formData.is_single_session ? parseFloat(formData.single_session_price) : calculateSubtotal();
+      const total = formData.is_single_session ? parseFloat(formData.single_session_price) : calculateTotal();
       const paidAmount = parseFloat(formData.paid_amount) || 0;
 
       // حساب الربح الإجمالي للفاتورة
       let totalProfit = 0;
-      for (const item of formData.items) {
-        // الحصول على سعر الشراء للمنتج
-        const productData = await window.electronAPI.query(`
-          SELECT purchase_price FROM products WHERE id = ?
-        `, [item.product_id]);
-        
-        if (productData.length > 0) {
-          const purchasePrice = productData[0].purchase_price;
-          // حساب الربح لهذا العنصر بعد الخصم
-          const itemProfit = (item.total_price * (total / subtotal)) - (item.quantity * purchasePrice);
-          totalProfit += itemProfit;
+      
+      // لا نحسب ربح للحصص المفردة
+      if (!formData.is_single_session) {
+        for (const item of formData.items) {
+          // الحصول على سعر الشراء للمنتج
+          const productData = await window.electronAPI.query(`
+            SELECT purchase_price FROM products WHERE id = ?
+          `, [item.product_id]);
+          
+          if (productData.length > 0) {
+            const purchasePrice = productData[0].purchase_price;
+            // حساب الربح لهذا العنصر بعد الخصم
+            const itemProfit = (item.total_price * (total / subtotal)) - (item.quantity * purchasePrice);
+            totalProfit += itemProfit;
+          }
         }
       }
 
@@ -234,8 +240,8 @@ const SalesPage: React.FC = () => {
       // Create invoice with profit
       const invoiceResult = await window.electronAPI.run(`
         INSERT INTO invoices (invoice_number, customer_name, customer_phone, subtotal, 
-                             discount, total, profit, paid_amount, is_credit, gym_id, user_id, created_at) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             discount, total, profit, paid_amount, is_credit, is_single_session, gym_id, user_id, created_at) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         invoiceNumber,
         formData.customer_name,
@@ -246,6 +252,7 @@ const SalesPage: React.FC = () => {
         totalProfit,
         paidAmount,
         formData.is_credit,
+        formData.is_single_session,
         gymId,
         user?.id,
         timestamp
@@ -254,18 +261,20 @@ const SalesPage: React.FC = () => {
       const invoiceId = invoiceResult.lastInsertRowid;
 
       // Add invoice items and update inventory
-      for (const item of formData.items) {
-        await window.electronAPI.run(`
-          INSERT INTO invoice_items (invoice_id, product_id, quantity, unit_price, total_price) 
-          VALUES (?, ?, ?, ?, ?)
-        `, [invoiceId, item.product_id, item.quantity, item.unit_price, item.total_price]);
+      if (!formData.is_single_session) {
+        for (const item of formData.items) {
+          await window.electronAPI.run(`
+            INSERT INTO invoice_items (invoice_id, product_id, quantity, unit_price, total_price) 
+            VALUES (?, ?, ?, ?, ?)
+          `, [invoiceId, item.product_id, item.quantity, item.unit_price, item.total_price]);
 
-        // Update product quantity - خصم الكمية من الكمية المناسبة حسب نوع النادي
-        await window.electronAPI.run(`
-          UPDATE products 
-          SET male_gym_quantity = male_gym_quantity - ? 
-          WHERE id = ?
-        `, [item.quantity, item.product_id]);
+          // Update product quantity - خصم الكمية من الكمية المناسبة حسب نوع النادي
+          await window.electronAPI.run(`
+            UPDATE products 
+            SET male_gym_quantity = male_gym_quantity - ? 
+            WHERE id = ?
+          `, [item.quantity, item.product_id]);
+        }
       }
 
       await loadInvoices();
@@ -302,6 +311,8 @@ const SalesPage: React.FC = () => {
       discount: '0',
       paid_amount: '0',
       is_credit: false,
+      is_single_session: false,
+      single_session_price: '500',
       items: []
     });
   };
@@ -461,6 +472,37 @@ const SalesPage: React.FC = () => {
               {/* Customer Info */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="form-group-ar">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.is_single_session}
+                      onChange={(e) => setFormData({ ...formData, is_single_session: e.target.checked })}
+                      className="ml-2"
+                    />
+                    <span className="arabic-text">حصة مفردة (غير مشترك)</span>
+                  </label>
+                </div>
+
+                {formData.is_single_session && (
+                  <div className="form-group-ar">
+                    <label className="form-label-ar arabic-text">
+                      سعر الحصة المفردة (دج)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.single_session_price}
+                      onChange={(e) => setFormData({ ...formData, single_session_price: e.target.value })}
+                      className="form-input-ar"
+                      placeholder="500"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="form-group-ar">
                   <label className="form-label-ar arabic-text">
                     اسم العميل
                   </label>
@@ -488,6 +530,7 @@ const SalesPage: React.FC = () => {
               </div>
 
               {/* Items */}
+              {!formData.is_single_session && (
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold arabic-text">المنتجات</h3>
@@ -581,10 +624,12 @@ const SalesPage: React.FC = () => {
                   ))}
                 </div>
               </div>
+              )}
 
               {/* Totals */}
               <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {!formData.is_single_session && (
                   <div className="form-group-ar">
                     <label className="form-label-ar arabic-text">
                       الخصم (دج)
@@ -598,6 +643,7 @@ const SalesPage: React.FC = () => {
                       className="form-input-ar"
                     />
                   </div>
+                  )}
 
                   <div className="form-group-ar">
                     <label className="form-label-ar arabic-text">
@@ -629,11 +675,15 @@ const SalesPage: React.FC = () => {
                 <div className="mt-4 text-right">
                   <div className="text-lg">
                     <span className="arabic-text">المجموع الفرعي: </span>
-                    <span className="font-bold">{formatCurrency(calculateSubtotal())}</span>
+                    <span className="font-bold">
+                      {formatCurrency(formData.is_single_session ? parseFloat(formData.single_session_price) : calculateSubtotal())}
+                    </span>
                   </div>
                   <div className="text-xl font-bold text-green-600">
                     <span className="arabic-text">المجموع الكلي: </span>
-                    <span>{formatCurrency(calculateTotal())}</span>
+                    <span>
+                      {formatCurrency(formData.is_single_session ? parseFloat(formData.single_session_price) : calculateTotal())}
+                    </span>
                   </div>
                 </div>
               </div>

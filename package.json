@@ -10,8 +10,10 @@
     "preview": "vite preview",
     "electron": "electron electron/main.cjs",
     "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron electron/main.cjs\"",
-    "build-electron": "npm run build && electron-builder",
-    "dist": "npm run build && electron-builder --publish=never"
+    "build-electron": "npm run build && electron-builder --config electron-builder.json",
+    "dist": "npm run build && electron-builder --config electron-builder.json --publish=never",
+    "pack": "npm run build && electron-builder --config electron-builder.json --dir",
+    "build-installer": "node scripts/build-installer.js"
   },
   "dependencies": {
     "lucide-react": "^0.344.0",

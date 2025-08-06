@@ -125,6 +125,7 @@ class DatabaseService {
         total DECIMAL(10,2) NOT NULL,
         paid_amount DECIMAL(10,2) DEFAULT 0,
         is_credit BOOLEAN DEFAULT 0,
+        is_single_session BOOLEAN DEFAULT 0,
         gym_id INTEGER,
         user_id INTEGER,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

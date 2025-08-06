@@ -213,20 +213,27 @@ const SubscribersPage: React.FC = () => {
   };
 
   const useSession = async (subscriberId: number) => {
-    // Show confirmation dialog
-    const confirmed = window.confirm('هل أنت متأكد من استخدام جلسة من هذا الاشتراك؟');
+    try {
+      // Show confirmation dialog using electron API
+      const result = await window.electronAPI.showConfirm({
+        title: 'تأكيد استخدام الجلسة',
+        message: 'هل أنت متأكد من استخدام جلسة من هذا الاشتراك؟',
+        detail: 'سيتم خصم جلسة واحدة من الجلسات المتبقية.',
+        buttons: ['نعم، استخدم الجلسة', 'إلغاء'],
+        defaultId: 1,
+        cancelId: 1
+      });
     
-    if (confirmed) {
-      try {
+      if (result.response === 0) {
         await window.electronAPI.run(`
           UPDATE subscribers 
           SET remaining_sessions = remaining_sessions - 1 
           WHERE id = ? AND remaining_sessions > 0
         `, [subscriberId]);
         await loadSubscribers();
-      } catch (error) {
-        console.error('Error using session:', error);
       }
+    } catch (error) {
+      console.error('Error using session:', error);
     }
   };
 

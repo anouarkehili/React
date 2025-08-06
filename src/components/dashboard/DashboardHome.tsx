@@ -26,11 +26,8 @@ interface DashboardStats {
   salesRevenue: number;
   salesProfit: number;
   totalSales: number;
-}
-
-interface Category {
-  id: number;
-  name: string;
+  singleSessionRevenue: number;
+  singleSessionCount: number;
 }
 
 const DashboardHome: React.FC = () => {
@@ -46,28 +43,20 @@ const DashboardHome: React.FC = () => {
     subscriptionRevenue: 0,
     salesRevenue: 0,
     salesProfit: 0,
-    totalSales: 0
+    totalSales: 0,
+    singleSessionRevenue: 0,
+    singleSessionCount: 0
   });
-  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   
-  // Filter states
-  const [filterType, setFilterType] = useState<'month' | 'day' | 'range'>('month');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  // Filter states - simplified to date range only
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
-
-  useEffect(() => {
-    loadCategories();
-  }, []);
 
   useEffect(() => {
     loadDashboardStats();
-  }, [gymId, filterType, selectedDate, selectedMonth, selectedYear, startDate, endDate, selectedCategories]);
+  }, [gymId, startDate, endDate]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -82,15 +71,6 @@ const DashboardHome: React.FC = () => {
     return () => document.removeEventListener('keydown', handleKeyPress);
   }, [navigate]);
 
-  const loadCategories = async () => {
-    try {
-      const data = await window.electronAPI.query('SELECT * FROM categories ORDER BY name');
-      setCategories(data);
-    } catch (error) {
-      console.error('Error loading categories:', error);
-    }
-  };
-
   const loadDashboardStats = async () => {
     try {
       setLoading(true);
@@ -98,14 +78,8 @@ const DashboardHome: React.FC = () => {
       let dateCondition = '';
       let dateParams: any[] = [];
 
-      // Build date condition based on filter type
-      if (filterType === 'day') {
-        dateCondition = "AND DATE(created_at) = ?";
-        dateParams = [selectedDate];
-      } else if (filterType === 'month') {
-        dateCondition = "AND strftime('%m', created_at) = ? AND strftime('%Y', created_at) = ?";
-        dateParams = [selectedMonth.toString().padStart(2, '0'), selectedYear.toString()];
-      } else if (filterType === 'range' && startDate && endDate) {
+      // Build date condition for date range filter
+      if (startDate && endDate) {
         dateCondition = "AND DATE(created_at) BETWEEN ? AND ?";
         dateParams = [startDate, endDate];
       }
@@ -128,23 +102,24 @@ const DashboardHome: React.FC = () => {
         FROM products
       `);
 
-      // Get sales data with category filter
-      let categoryCondition = '';
-      let categoryParams: any[] = [];
-      if (selectedCategories.length > 0) {
-        categoryCondition = `AND p.category_id IN (${selectedCategories.map(() => '?').join(',')})`;
-        categoryParams = selectedCategories;
-      }
-
+      // Get sales data (excluding single sessions)
       const salesData = await window.electronAPI.query(`
         SELECT 
           COUNT(DISTINCT i.id) as total_sales,
-          COALESCE(SUM(i.total), 0) as revenue
+          COALESCE(SUM(i.total), 0) as revenue,
+          COALESCE(SUM(i.profit), 0) as profit
         FROM invoices i
-        LEFT JOIN invoice_items ii ON i.id = ii.invoice_id
-        LEFT JOIN products p ON ii.product_id = p.id
-        WHERE i.gym_id = ? ${dateCondition} ${categoryCondition}
-      `, [gymId, ...dateParams, ...categoryParams]);
+        WHERE i.gym_id = ? AND i.is_single_session = 0 ${dateCondition}
+      `, [gymId, ...dateParams]);
+
+      // Get single session data
+      const singleSessionData = await window.electronAPI.query(`
+        SELECT 
+          COUNT(*) as session_count,
+          COALESCE(SUM(total), 0) as revenue
+        FROM invoices 
+        WHERE gym_id = ? AND is_single_session = 1 ${dateCondition}
+      `, [gymId, ...dateParams]);
 
       // Get subscription revenue
       const subscriptionRevenue = await window.electronAPI.query(`
@@ -153,27 +128,16 @@ const DashboardHome: React.FC = () => {
         WHERE gym_id = ? ${dateCondition}
       `, [gymId, ...dateParams]);
 
-      // Calculate profit from invoices with category filter
-      const profitData = await window.electronAPI.query(`
-        SELECT 
-          COALESCE(SUM(i.profit), 0) as profit
-        FROM invoices i
-        LEFT JOIN invoice_items ii ON i.id = ii.invoice_id
-        LEFT JOIN products p ON ii.product_id = p.id
-        WHERE i.gym_id = ? ${dateCondition} ${categoryCondition}
-      `, [gymId, ...dateParams, ...categoryParams]);
-
-      // Get internal sales profit with category filter
+      // Get internal sales profit
       const internalSalesProfit = await window.electronAPI.query(`
         SELECT 
-          COALESCE(SUM(ins.profit), 0) as profit
-        FROM internal_sales ins
-        LEFT JOIN products p ON ins.product_id = p.id
-        WHERE ins.gym_id = ? ${dateCondition} ${categoryCondition}
-      `, [gymId, ...dateParams, ...categoryParams]);
+          COALESCE(SUM(profit), 0) as profit
+        FROM internal_sales
+        WHERE gym_id = ? ${dateCondition}
+      `, [gymId, ...dateParams]);
 
-      const totalProfit = (profitData[0]?.profit || 0) + (internalSalesProfit[0]?.profit || 0);
-      const totalRevenue = (salesData[0]?.revenue || 0) + (subscriptionRevenue[0]?.revenue || 0);
+      const totalProfit = (salesData[0]?.profit || 0) + (internalSalesProfit[0]?.profit || 0);
+      const totalRevenue = (salesData[0]?.revenue || 0) + (subscriptionRevenue[0]?.revenue || 0) + (singleSessionData[0]?.revenue || 0);
 
       setStats({
         totalSubscribers: subscribersData[0]?.total || 0,
@@ -185,7 +149,9 @@ const DashboardHome: React.FC = () => {
         subscriptionRevenue: subscriptionRevenue[0]?.revenue || 0,
         salesRevenue: salesData[0]?.revenue || 0,
         salesProfit: totalProfit,
-        totalSales: salesData[0]?.total_sales || 0
+        totalSales: salesData[0]?.total_sales || 0,
+        singleSessionRevenue: singleSessionData[0]?.revenue || 0,
+        singleSessionCount: singleSessionData[0]?.session_count || 0
       });
     } catch (error) {
       console.error('Error loading dashboard stats:', error);
@@ -202,22 +168,9 @@ const DashboardHome: React.FC = () => {
     }).format(amount);
   };
 
-  const handleCategoryToggle = (categoryId: number) => {
-    setSelectedCategories(prev => 
-      prev.includes(categoryId) 
-        ? prev.filter(id => id !== categoryId)
-        : [...prev, categoryId]
-    );
-  };
-
   const clearFilters = () => {
-    setFilterType('month');
-    setSelectedDate(new Date().toISOString().split('T')[0]);
-    setSelectedMonth(new Date().getMonth() + 1);
-    setSelectedYear(new Date().getFullYear());
     setStartDate('');
     setEndDate('');
-    setSelectedCategories([]);
   };
 
   const StatCard: React.FC<{
@@ -270,16 +223,16 @@ const DashboardHome: React.FC = () => {
             className="btn-secondary-ar arabic-text flex items-center"
           >
             <Filter className="w-5 h-5 ml-2" />
-            الفلاتر
+            فلترة الفترة الزمنية
           </button>
         </div>
       </div>
 
-      {/* Filters Panel */}
+      {/* Date Range Filter */}
       {showFilters && (
         <div className="card-ar">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold arabic-text">فلاتر الإحصائيات</h3>
+            <h3 className="text-lg font-semibold arabic-text">فلترة الإحصائيات حسب الفترة الزمنية</h3>
             <button
               onClick={() => setShowFilters(false)}
               className="p-2 text-gray-400 hover:text-gray-600"
@@ -288,140 +241,29 @@ const DashboardHome: React.FC = () => {
             </button>
           </div>
 
-          <div className="space-y-4">
-            {/* Filter Type */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <button
-                onClick={() => setFilterType('day')}
-                className={`p-3 rounded-lg border-2 transition-colors ${
-                  filterType === 'day' 
-                    ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <span className="arabic-text font-medium">يوم محدد</span>
-              </button>
-              <button
-                onClick={() => setFilterType('month')}
-                className={`p-3 rounded-lg border-2 transition-colors ${
-                  filterType === 'month' 
-                    ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <span className="arabic-text font-medium">شهر محدد</span>
-              </button>
-              <button
-                onClick={() => setFilterType('range')}
-                className={`p-3 rounded-lg border-2 transition-colors ${
-                  filterType === 'range' 
-                    ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <span className="arabic-text font-medium">فترة زمنية</span>
-              </button>
-            </div>
-
-            {/* Date Inputs */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {filterType === 'day' && (
-                <div className="form-group-ar">
-                  <label className="form-label-ar arabic-text">التاريخ</label>
-                  <input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="form-input-ar"
-                  />
-                </div>
-              )}
-
-              {filterType === 'month' && (
-                <>
-                  <div className="form-group-ar">
-                    <label className="form-label-ar arabic-text">الشهر</label>
-                    <select
-                      value={selectedMonth}
-                      onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                      className="form-select-ar"
-                    >
-                      <option value={1}>يناير</option>
-                      <option value={2}>فبراير</option>
-                      <option value={3}>مارس</option>
-                      <option value={4}>أبريل</option>
-                      <option value={5}>مايو</option>
-                      <option value={6}>يونيو</option>
-                      <option value={7}>يوليو</option>
-                      <option value={8}>أغسطس</option>
-                      <option value={9}>سبتمبر</option>
-                      <option value={10}>أكتوبر</option>
-                      <option value={11}>نوفمبر</option>
-                      <option value={12}>ديسمبر</option>
-                    </select>
-                  </div>
-                  <div className="form-group-ar">
-                    <label className="form-label-ar arabic-text">السنة</label>
-                    <select
-                      value={selectedYear}
-                      onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                      className="form-select-ar"
-                    >
-                      <option value={2024}>2024</option>
-                      <option value={2025}>2025</option>
-                      <option value={2026}>2026</option>
-                    </select>
-                  </div>
-                </>
-              )}
-
-              {filterType === 'range' && (
-                <>
-                  <div className="form-group-ar">
-                    <label className="form-label-ar arabic-text">من تاريخ</label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="form-input-ar"
-                    />
-                  </div>
-                  <div className="form-group-ar">
-                    <label className="form-label-ar arabic-text">إلى تاريخ</label>
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="form-input-ar"
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Category Filter */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="form-group-ar">
-              <label className="form-label-ar arabic-text">فلترة الأرباح حسب الفئات</label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
-                {categories.map((category) => (
-                  <label key={category.id} className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={selectedCategories.includes(category.id)}
-                      onChange={() => handleCategoryToggle(category.id)}
-                      className="ml-2"
-                    />
-                    <span className="text-sm arabic-text">{category.name}</span>
-                  </label>
-                ))}
-              </div>
+              <label className="form-label-ar arabic-text">من تاريخ</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="form-input-ar"
+              />
             </div>
-
-            {/* Clear Filters */}
-            <div className="flex justify-end">
+            <div className="form-group-ar">
+              <label className="form-label-ar arabic-text">إلى تاريخ</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="form-input-ar"
+              />
+            </div>
+            <div className="flex items-end">
               <button
                 onClick={clearFilters}
-                className="btn-secondary-ar arabic-text"
+                className="btn-secondary-ar arabic-text w-full"
               >
                 مسح الفلاتر
               </button>
@@ -437,31 +279,50 @@ const DashboardHome: React.FC = () => {
           value={formatCurrency(stats.totalRevenue)}
           icon={<DollarSign className="w-6 h-6 text-white" />}
           color="bg-green-500"
-          subtitle="اشتراكات ومبيعات"
+          subtitle="جميع المصادر"
         />
         
         <StatCard
-          title="إجمالي مبلغ الاشتراكات"
+          title="إيرادات الاشتراكات"
           value={formatCurrency(stats.subscriptionRevenue)}
           icon={<CreditCard className="w-6 h-6 text-white" />}
           color="bg-blue-500"
-          subtitle="إيرادات الاشتراكات"
+          subtitle="اشتراكات شهرية وجلسات"
         />
         
         <StatCard
-          title="إجمالي مبلغ المبيعات"
+          title="إيرادات المبيعات"
           value={formatCurrency(stats.salesRevenue)}
           icon={<ShoppingCart className="w-6 h-6 text-white" />}
           color="bg-purple-500"
-          subtitle="إيرادات المبيعات"
+          subtitle="مبيعات المنتجات"
         />
         
         <StatCard
-          title="صافي الربح من المبيعات"
+          title="صافي الربح"
           value={formatCurrency(stats.salesProfit)}
           icon={<TrendingUp className="w-6 h-6 text-white" />}
           color="bg-orange-500"
-          subtitle={selectedCategories.length > 0 ? `${selectedCategories.length} فئة محددة` : "جميع الفئات"}
+          subtitle="من المبيعات والقائمة البيضاء"
+        />
+      </div>
+
+      {/* Single Sessions Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <StatCard
+          title="إيرادات الحصص المفردة"
+          value={formatCurrency(stats.singleSessionRevenue)}
+          icon={<Users className="w-6 h-6 text-white" />}
+          color="bg-cyan-500"
+          subtitle={`${stats.singleSessionCount} حصة`}
+        />
+        
+        <StatCard
+          title="عدد الحصص المفردة"
+          value={stats.singleSessionCount}
+          icon={<Calendar className="w-6 h-6 text-white" />}
+          color="bg-teal-500"
+          subtitle="للغير مشتركين"
         />
       </div>
 
@@ -529,7 +390,13 @@ const DashboardHome: React.FC = () => {
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-gray-600 arabic-text">صافي الربح من المبيعات</span>
+              <span className="text-gray-600 arabic-text">إيرادات الحصص المفردة</span>
+              <span className="font-semibold text-cyan-600">
+                {formatCurrency(stats.singleSessionRevenue)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600 arabic-text">صافي الربح</span>
               <span className="font-semibold text-orange-600">
                 {formatCurrency(stats.salesProfit)}
               </span>
