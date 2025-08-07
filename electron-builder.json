@@ -33,8 +33,7 @@
     ],
     "icon": "build-resources/icon.ico",
     "requestedExecutionLevel": "asInvoker",
-    "artifactName": "${productName}-${version}-Setup.${ext}",
-    "publisherName": "GYM DADA Systems"
+    "artifactName": "${productName}-${version}-Setup.${ext}"
   },
   "nsis": {
     "oneClick": false,
@@ -54,9 +53,7 @@
     "language": "Arabic",
     "installerSidebar": "build-resources/installer-sidebar.bmp",
     "uninstallerSidebar": "build-resources/installer-sidebar.bmp",
-    "installerHeader": "build-resources/installer-header.bmp",
-    "uninstallerHeader": "build-resources/installer-header.bmp",
-    "include": "installer-custom.nsh"
+    "installerHeader": "build-resources/installer-header.bmp"
   },
   "mac": {
     "category": "public.app-category.business",

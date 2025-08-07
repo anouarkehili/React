@@ -113,6 +113,15 @@ class DatabaseService {
       )
     `);
 
+    // Add created_by column if it doesn't exist
+    this.db.run(`
+      ALTER TABLE subscribers ADD COLUMN created_by INTEGER
+    `, (err) => {
+      if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding created_by column to subscribers:', err);
+      }
+    });
+
     // Invoices table (sales)
     this.db.run(`
       CREATE TABLE IF NOT EXISTS invoices (

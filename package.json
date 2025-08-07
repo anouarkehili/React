@@ -16,12 +16,11 @@
     "build-installer": "node scripts/build-installer.js"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "sqlite3": "^5.1.7",
-    "bcryptjs": "^2.4.3"
-
+    "sqlite3": "^5.1.7"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

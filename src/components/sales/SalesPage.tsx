@@ -235,7 +235,7 @@ const SalesPage: React.FC = () => {
 
       // Get current timestamp
       const now = new Date();
-      const timestamp = now.toISOString();
+      const timestamp = now.toISOString().slice(0, 19).replace('T', ' ');
 
       // Create invoice with profit
       const invoiceResult = await window.electronAPI.run(`

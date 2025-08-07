@@ -56,7 +56,7 @@ const SubscribersPage: React.FC = () => {
     try {
       const data = await window.electronAPI.query(`
         SELECT s.*, st.name as subscription_type_name, st.type as subscription_type,
-               u.full_name as created_by_user
+               COALESCE(u.full_name, 'غير محدد') as created_by_user
         FROM subscribers s
         JOIN subscription_types st ON s.subscription_type_id = st.id
         LEFT JOIN users u ON s.created_by = u.id
