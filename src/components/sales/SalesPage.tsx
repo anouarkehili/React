@@ -685,6 +685,10 @@ const SalesPage: React.FC = () => {
                       {formatCurrency(formData.is_single_session ? parseFloat(formData.single_session_price) : calculateTotal())}
                     </span>
                   </div>
+                  <div className="text-sm text-gray-600 mt-2">
+                    <span className="arabic-text">الوقت: </span>
+                    <span>{new Date().toLocaleString('ar-DZ')}</span>
+                  </div>
                 </div>
               </div>
 

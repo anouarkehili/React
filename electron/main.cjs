@@ -49,15 +49,11 @@ function createWindow() {
     backgroundColor: '#f8f9fa'
   });
 
-const startUrl = isDev
-  ? 'http://localhost:5173'
-  : null;
+  const startUrl = isDev 
+    ? 'http://localhost:5173' 
+    : `file://${path.join(__dirname, '../dist/index.html')}`;
 
-if (isDev) {
   mainWindow.loadURL(startUrl);
-} else {
-  mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
-}
 
 mainWindow.once('ready-to-show', () => {
   mainWindow.show();
