@@ -230,6 +230,33 @@ class DatabaseService {
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_internal_sales_gym_date ON internal_sales(gym_id, created_at)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_subscription_types_gym ON subscription_types(gym_id, is_active)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_subscribers_end_date ON subscribers(end_date, status)`);
+
+    // Customers table
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS customers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        phone TEXT NOT NULL,
+        email TEXT,
+        address TEXT,
+        gym_id INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (gym_id) REFERENCES gyms (id)
+      )
+    `);
+
+    // Add customer_id to invoices table if it doesn't exist
+    this.db.run(`
+      ALTER TABLE invoices ADD COLUMN customer_id INTEGER
+    `, (err) => {
+      if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding customer_id column to invoices:', err);
+      }
+    });
+
+    // Add foreign key index
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_invoices_customer ON invoices(customer_id)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_customers_gym ON customers(gym_id)`);
   }
 
   async seedInitialData() {

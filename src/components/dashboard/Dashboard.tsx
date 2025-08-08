@@ -10,6 +10,7 @@ import SubscribersPage from '../subscribers/SubscribersPage';
 import InternalSalesPage from '../internal-sales/InternalSalesPage';
 import UsersPage from '../users/UsersPage';
 import SettingsPage from '../settings/SettingsPage';
+import CustomersPage from '../customers/CustomersPage';
 
 const Dashboard: React.FC = () => {
   return (
@@ -22,6 +23,7 @@ const Dashboard: React.FC = () => {
       <Route path="subscriptions" element={<SubscriptionsPage />} />
       <Route path="subscribers" element={<SubscribersPage />} />
       <Route path="internal-sales" element={<InternalSalesPage />} />
+      <Route path="customers" element={<CustomersPage />} />
       <Route path="users" element={<UsersPage />} />
       <Route path="settings" element={<SettingsPage />} />
     </Routes>

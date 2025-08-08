@@ -9,7 +9,8 @@ import {
   UserPlus,
   FileText,
   Settings,
-  Tag
+  Tag,
+  UserCheck
 } from 'lucide-react';
 
 const Sidebar: React.FC = () => {
@@ -56,6 +57,11 @@ const Sidebar: React.FC = () => {
       path: '/dashboard/internal-sales',
       icon: UserPlus,
       label: 'القائمة البيضاء'
+    },
+    {
+      path: '/dashboard/customers',
+      icon: UserCheck,
+      label: 'العملاء'
     },
     {
       path: '/dashboard/users',
